@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
 export type KeyModifier = 'command' | 'shift' | 'option' | 'control';
 export interface KeyCommand {
@@ -12,10 +12,12 @@ export interface KeyCommand {
   title?: string;
 }
 
+// In expo-modules-core (Expo 56), a native module that declares `Events(...)` IS an
+// EventEmitter — call `addListener` on it directly. Constructing `new EventEmitter(module)`
+// is the legacy form and types the event name as `never`.
 const Native = Platform.OS === 'ios'
   ? requireOptionalNativeModule<any>('AppleKeyCommands')
   : null;
-const emitter = Native ? new EventEmitter(Native) : null;
 
 /** iOS only; false on Android / when the native module is absent (Jest). */
 export function isKeyCommandsSupported(): boolean {
@@ -34,7 +36,7 @@ export function clearKeyCommands(): void {
 
 /** Subscribe to command presses; the callback receives the command id. */
 export function addKeyCommandListener(cb: (id: string) => void): { remove(): void } {
-  if (!emitter) return { remove() {} };
-  const sub = emitter.addListener('onKeyCommand', (e: { id: string }) => cb(e.id));
+  if (!Native) return { remove() {} };
+  const sub = Native.addListener('onKeyCommand', (e: { id: string }) => cb(e.id));
   return { remove: () => sub.remove() };
 }
